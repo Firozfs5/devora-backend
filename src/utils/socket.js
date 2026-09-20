@@ -1,8 +1,10 @@
 const socket = require("socket.io");
 const Chat = require("../models/chat");
+const Notification = require("../models/notification");
 
+let io;
 const initializeSocket = (server) => {
-  const io = socket(server, {
+  io = socket(server, {
     cors: {
       origin: process.env.FRONTEND_URL,
       credentials: true,
@@ -11,20 +13,23 @@ const initializeSocket = (server) => {
 
   io.on("connection", (socket) => {
     //Handle Events
-    socket.on("joinchat", ({ firstName, userId, targetUserId }) => {
-      // console.log(userId + "  " + targetUserId);
+    socket.on("joinchat", ({ userId, targetUserId }) => {
       const roomId = [userId, targetUserId].sort().join("-");
-      // console.log(roomId);
-
-      // console.log(firstName + " joining " + roomId);
 
       socket.join(roomId);
+      socket.join(`user:${userId}`);
+      socket.activeChat = roomId;
+    });
+
+    socket.on("leaveChat", (userId, targetUserId) => {
+      const roomId = [userId, targetUserId].sort().join("-");
+      socket.leave(roomId);
+      socket.activeChat = null;
     });
 
     socket.on("sendMessage", async (messageObj) => {
       const { userId, targetUserId, text } = messageObj;
       const roomId = [userId, targetUserId].sort().join("-"); //its important to make a room id.
-      // console.log(messageObj.sender + ":" + messageObj.text);
 
       // Save message in database
       try {
@@ -47,8 +52,51 @@ const initializeSocket = (server) => {
         await chat.save();
 
         const savedMessage = chat.messages[chat.messages.length - 1];
-        console.log(savedMessage);
         io.to(roomId).emit("messageRecieved", savedMessage);
+
+        let isRecipientInChat = false;
+
+        const recipientRoom = io.sockets.adapter.rooms.get(
+          `user:${targetUserId}`,
+        );
+
+        if (recipientRoom) {
+          for (const socketId of recipientRoom) {
+            const recipientSocket = io.sockets.sockets.get(socketId);
+            if (recipientSocket?.activeChat == roomId) {
+              isRecipientInChat = true;
+              break;
+            }
+          }
+        }
+
+        if (!isRecipientInChat) {
+          const existingNotification = await Notification.findOne({
+            recipient: targetUserId,
+            sender: userId,
+            type: "message",
+            isRead: false,
+          });
+
+          if (!existingNotification) {
+            const newNotification = new Notification({
+              recipient: targetUserId,
+              sender: userId,
+              type: "message",
+              message: "You received a new message",
+            });
+
+            await newNotification.save();
+            await newNotification.populate(
+              "sender",
+              "firstName lastName photoUrl",
+            );
+            io.to(`user:${targetUserId}`).emit(
+              "newNotification",
+              newNotification,
+            );
+          }
+        }
       } catch (err) {
         console.log(err);
       }
@@ -79,7 +127,27 @@ const initializeSocket = (server) => {
 
     //video call events
 
+    //joining user for notification
+    socket.on("joinUser", (userId) => {
+      const roomId = `user:${userId}`;
+      socket.join(roomId);
+      console.log(`User ${userId} joined room ${roomId}`);
+    });
+
+    //joining user for notification
+
     socket.on("disconnect", () => {});
   });
+
+  return io;
 };
-module.exports = initializeSocket;
+
+const getIo = () => {
+  if (!io) {
+    throw new Error("Socket.io has not been initialized");
+  }
+
+  return io;
+};
+
+module.exports = { getIo, initializeSocket };

@@ -3,6 +3,8 @@ const requestRouter = express.Router();
 const { userAuth } = require("../middleware/auth");
 const User = require("../models/user");
 const connectionRequest = require("../models/connectionRequest");
+const Notification = require("../models/notification");
+const { getIo } = require("../utils/socket");
 
 requestRouter.post(
   "/requests/send/:status/:toUserId",
@@ -43,6 +45,22 @@ requestRouter.post(
       });
       await requestObject.save();
 
+      //creating notification
+      if (status === "interested") {
+        const newNotification = new Notification({
+          recipient: toUserId,
+          sender: fromUserId,
+          message: req.user.firstName + " sent you a request",
+          type: "connection_request",
+        });
+
+        await newNotification.save();
+
+        await newNotification.populate("sender", "firstName lastName photoUrl");
+
+        const io = getIo();
+        io.to(`user:${toUserId}`).emit("newNotification", newNotification);
+      }
       //sendin the response
       res.json({
         message:
@@ -50,6 +68,7 @@ requestRouter.post(
         data: requestObject,
       });
     } catch (err) {
+      console.log(err);
       res.status(400).send("ERRO: " + err.message);
     }
   },
@@ -79,12 +98,34 @@ requestRouter.post(
 
       //checking does requestid exist or not
       if (!connectionRequestObject) {
-        res.status(400).json({ message: "request connection not found" });
+        return res
+          .status(400)
+          .json({ message: "request connection not found" });
       }
 
       //updatin status
       connectionRequestObject.status = status;
       await connectionRequestObject.save();
+
+      if (status === "accepted") {
+        const newNotification = new Notification({
+          recipient: connectionRequestObject.fromUserId,
+          sender: connectionRequestObject.toUserId,
+          message: req.user.firstName + " accepted your request",
+          type: "connection_accepted",
+        });
+
+        await newNotification.save();
+
+        await newNotification.populate("sender", "firstName lastName photoUrl");
+
+        const io = getIo();
+        io.to(`user:${connectionRequestObject.fromUserId}`).emit(
+          "newNotification",
+          newNotification,
+        );
+      }
+
       res.send("The request is " + status);
     } catch (err) {
       res.status(400).send("ERROR:" + err.message);

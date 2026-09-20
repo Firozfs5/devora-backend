@@ -9,10 +9,11 @@ const profileRouter = require("./routes/profile");
 const requestRouter = require("./routes/requests");
 const chatRouter = require("./routes/chat");
 const userRouter = require("./routes/user");
+const notificationRouter = require("./routes/notification");
 const cors = require("cors");
 const transporter = require("./config/email");
 const http = require("http");
-const initializeSocket = require("./utils/socket");
+const { initializeSocket } = require("./utils/socket");
 
 app.use(
   cors({
@@ -28,7 +29,7 @@ app.use("/", authRouter);
 app.use("/", profileRouter);
 app.use("/", userRouter);
 app.use("/", chatRouter);
-
+app.use("/", notificationRouter);
 // socket.io
 
 const server = http.createServer(app);

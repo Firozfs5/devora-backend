@@ -4,28 +4,28 @@ const sendEmail = async (to, name) => {
   const mailOptions = {
     from: process.env.EMAIL,
     to: to,
-    subject: "DevTinder Account Created Successfully 🎉",
+    subject: "Devora Account Created Successfully 🎉",
 
     text: `Hi ${name},
 
-Your DevTinder account has been created successfully!
+Your Devora account has been created successfully!
 
-Welcome to DevTinder. 🚀
+Welcome to Devora. 🚀
 
 Thanks,
-DevTinder Team`,
+Devora Team`,
 
     html: `
-      <h2>Welcome to DevTinder, ${name}! 🎉</h2>
+      <h2>Welcome to Devora, ${name}! 🎉</h2>
 
       <p>Your account has been created successfully.</p>
 
-      <p>We're happy to have you on DevTinder. 🚀</p>
+      <p>We're happy to have you on Devora. 🚀</p>
 
       <br>
 
       <p>Thanks,<br>
-      DevTinder Team</p>
+      Devora Team</p>
     `,
   };
 

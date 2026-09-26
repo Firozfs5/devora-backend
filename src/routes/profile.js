@@ -83,6 +83,36 @@ profileRouter.delete("/profile/delete", userAuth, async (req, res) => {
   }
 });
 
+profileRouter.patch("/profile/theme", userAuth, async (req, res) => {
+  try {
+    const { theme } = req.body;
+
+    if (!["light", "dark"].includes(theme)) {
+      return res.status(400).json({
+        message: "Invalid theme",
+      });
+    }
+
+    const updatedUser = await user.findByIdAndUpdate(
+      req.user._id,
+      { theme },
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
+
+    res.json({
+      message: "Theme updated successfully",
+      user: updatedUser,
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: "Something went wrong",
+    });
+  }
+});
+
 profileRouter.post(
   "/profile/photo",
   userAuth,

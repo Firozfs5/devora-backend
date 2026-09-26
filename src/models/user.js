@@ -50,6 +50,11 @@ const userSchema = new mongoose.Schema(
       //   message: "Gender is invalid ",
       // },
     },
+    theme: {
+      type: String,
+      enum: ["light", "dark"],
+      default: "light",
+    },
     photoUrl: {
       type: String,
     },
